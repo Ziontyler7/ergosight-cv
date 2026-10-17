@@ -15,6 +15,8 @@ import { evaluateRepetitionFatigue } from './lib/fatigue/repetition-fatigue-engi
 import {
   synthesizeEngineeringControls,
   buildAwsGreengrassTelemetryPacket,
+  buildAwsGreengrassV2RecipeYaml,
+  buildBedrockAgentActionGroupSpec,
   verifyPrivacyCompliantTelemetry,
 } from './lib/aws/aws-edge-coach-adapter.ts';
 
@@ -84,6 +86,9 @@ export default function App() {
     activePreset.cyclesPerMinute
   );
   const [privacyMode, setPrivacyMode] = useState<PrivacyMode>('face-redacted');
+  const [activeAwsTab, setActiveAwsTab] = useState<
+    'emf-telemetry' | 'greengrass-v2' | 'bedrock-agent'
+  >('emf-telemetry');
   const [copiedBanner, setCopiedBanner] = useState<string | null>(null);
 
   useEffect(() => {
@@ -152,16 +157,48 @@ export default function App() {
     [awsPacket]
   );
 
+  const greengrassRecipeYaml = useMemo(
+    () =>
+      buildAwsGreengrassV2RecipeYaml({
+        scenario: activePreset,
+        privacyMode,
+        risk: biomechanicalRisk,
+      }),
+    [activePreset, privacyMode, biomechanicalRisk]
+  );
+
+  const bedrockActionGroupJson = useMemo(
+    () =>
+      buildBedrockAgentActionGroupSpec({
+        scenario: activePreset,
+        risk: biomechanicalRisk,
+        fatigue: fatigueReport,
+      }),
+    [activePreset, biomechanicalRisk, fatigueReport]
+  );
+
   const privacyAudit = useMemo(
     () => verifyPrivacyCompliantTelemetry(awsJson),
     [awsJson]
   );
 
   function handleCopyJson() {
+    const label =
+      activeAwsTab === 'emf-telemetry'
+        ? 'AWS CloudWatch EMF Telemetry JSON'
+        : activeAwsTab === 'greengrass-v2'
+        ? 'AWS IoT Greengrass V2 Recipe (2020-01-25)'
+        : 'Amazon Bedrock AgentCore Action Group OpenAPI 3.0 Spec';
+    const content =
+      activeAwsTab === 'emf-telemetry'
+        ? awsJson
+        : activeAwsTab === 'greengrass-v2'
+        ? greengrassRecipeYaml
+        : bedrockActionGroupJson;
     if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(awsJson).catch(() => {});
+      navigator.clipboard.writeText(content).catch(() => {});
     }
-    setCopiedBanner('AWS CloudWatch EMF Telemetry JSON');
+    setCopiedBanner(label);
     setTimeout(() => setCopiedBanner(null), 2200);
   }
 
@@ -731,12 +768,12 @@ export default function App() {
             </div>
           </section>
 
-          {/* Panel 3: AWS IoT Greengrass / CloudWatch Embedded Metric Format (EMF) Telemetry */}
+          {/* Panel 3: AWS IoT Greengrass V2, Bedrock AgentCore & CloudWatch EMF Telemetry */}
           <section className="panel-card">
             <div className="panel-header">
               <div>
                 <h2 className="panel-title">
-                  5. AWS IoT Greengrass / CloudWatch EMF Anonymized Telemetry
+                  5. AWS IoT Greengrass V2 · Bedrock AgentCore · CloudWatch EMF Studio
                 </h2>
                 <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
                   Verified zero cranial/facial biometric PII leaves the edge camera appliance.
@@ -746,7 +783,7 @@ export default function App() {
                 <span className="badge-pill badge-emerald">
                   <ShieldCheckIcon />{' '}
                   {privacyAudit.validEmfSchema && privacyAudit.zeroBiometricPiiLeak
-                    ? 'Valid AWS EMF · 0 Biometric PII Leaks'
+                    ? 'Valid AWS EMF + Greengrass V2 · 0 Biometric PII Leaks'
                     : 'Schema Warning'}
                 </span>
                 <button
@@ -754,9 +791,33 @@ export default function App() {
                   className="action-btn"
                   onClick={handleCopyJson}
                 >
-                  Copy AWS EMF JSON
+                  Copy Active Spec
                 </button>
               </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+              <button
+                type="button"
+                className={`tab-btn ${activeAwsTab === 'emf-telemetry' ? 'active' : ''}`}
+                onClick={() => setActiveAwsTab('emf-telemetry')}
+              >
+                CloudWatch EMF Telemetry JSON
+              </button>
+              <button
+                type="button"
+                className={`tab-btn ${activeAwsTab === 'greengrass-v2' ? 'active' : ''}`}
+                onClick={() => setActiveAwsTab('greengrass-v2')}
+              >
+                AWS IoT Greengrass V2 Recipe (2020-01-25)
+              </button>
+              <button
+                type="button"
+                className={`tab-btn ${activeAwsTab === 'bedrock-agent' ? 'active' : ''}`}
+                onClick={() => setActiveAwsTab('bedrock-agent')}
+              >
+                Bedrock AgentCore Action Group (OpenAPI 3.0)
+              </button>
             </div>
 
             {copiedBanner && (
@@ -772,7 +833,13 @@ export default function App() {
               </div>
             )}
 
-            <pre className="json-box mono">{awsJson}</pre>
+            <pre className="json-box mono">
+              {activeAwsTab === 'emf-telemetry'
+                ? awsJson
+                : activeAwsTab === 'greengrass-v2'
+                ? greengrassRecipeYaml
+                : bedrockActionGroupJson}
+            </pre>
           </section>
         </div>
       </div>

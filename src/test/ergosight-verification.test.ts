@@ -140,6 +140,16 @@ async function runVerificationSuite() {
       true,
       `Biometric PII leak detected for ${scenario.id}: ${privacyCheck.errors.join('; ')}`
     );
+    assert.ok(
+      bundle.greengrassV2RecipeYaml.includes('RecipeFormatVersion: "2020-01-25"') &&
+        bundle.greengrassV2RecipeYaml.includes('aws.greengrass#PublishToIoTCore'),
+      `Expected valid AWS IoT Greengrass V2 Recipe (2020-01-25) for ${scenario.id}`
+    );
+    assert.ok(
+      bundle.bedrockAgentActionGroupJson.includes('"openapi": "3.0.1"') &&
+        bundle.bedrockAgentActionGroupJson.includes('evaluateWorkstationBiomechanics'),
+      `Expected valid Amazon Bedrock AgentCore Action Group OpenAPI 3.0 spec for ${scenario.id}`
+    );
   }
 
   const faultBundle = await runErgoSightPipeline({
@@ -156,7 +166,7 @@ async function runVerificationSuite() {
     'Expected circuit breaker fallback reason'
   );
   console.log(
-    '✅ GATE 4 PASSED: AwsEdgeCoachAdapter verified AWS CloudWatch EMF telemetry, 0 biometric PII leaks, and 4.5s circuit breaker fallback.'
+    '✅ GATE 4 PASSED: AwsEdgeCoachAdapter verified CloudWatch EMF, Greengrass V2 (2020-01-25), Bedrock Action Group, & circuit breaker.'
   );
 
   // ---------------------------------------------------------------------------

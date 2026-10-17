@@ -46,6 +46,40 @@ export interface AwsGreengrassTelemetryPacket {
   ActionLevel: string;
 }
 
+export interface AwsGreengrassV2ComponentRecipe {
+  RecipeFormatVersion: '2020-01-25';
+  ComponentName: string;
+  ComponentVersion: string;
+  ComponentDescription: string;
+  ComponentPublisher: string;
+  ComponentConfiguration: {
+    DefaultConfiguration: {
+      StationId: string;
+      FacilityZone: string;
+      PrivacyMode: PrivacyMode;
+      EnforceZeroBiometricRetention: boolean;
+      NIOSHLiftingIndexAlertThreshold: number;
+      REBAImmediateInterventionThreshold: number;
+      accessControl: Record<
+        string,
+        {
+          policyDescription: string;
+          operations: string[];
+          resources: string[];
+        }
+      >;
+    };
+  };
+  Manifests: Array<{
+    Platform: { os: string; architecture: string };
+    Lifecycle: {
+      Install: string;
+      Run: string;
+      Recover: string;
+    };
+  }>;
+}
+
 export interface ErgoSightCompleteBundle {
   modeUsed: EdgeInferenceMode;
   fallbackUsed: boolean;
@@ -58,6 +92,8 @@ export interface ErgoSightCompleteBundle {
   coachExecutiveNote: string;
   awsTelemetryPacket: AwsGreengrassTelemetryPacket;
   awsTelemetryJson: string;
+  greengrassV2RecipeYaml: string;
+  bedrockAgentActionGroupJson: string;
 }
 
 export function synthesizeEngineeringControls(
@@ -140,6 +176,98 @@ export function buildAwsGreengrassTelemetryPacket(params: {
     CumulativeFatigueScore: params.fatigue.cumulativeFatigueScore,
     ActionLevel: params.risk.actionLevel,
   };
+}
+
+export function buildAwsGreengrassV2RecipeYaml(params: {
+  scenario: ErgonomicScenarioPreset;
+  privacyMode: PrivacyMode;
+  risk: BiomechanicalRiskAssessment;
+}): string {
+  return [
+    `---`,
+    `RecipeFormatVersion: "2020-01-25"`,
+    `ComponentName: "com.ergosight.cv.EdgePoseSafetyMonitor"`,
+    `ComponentVersion: "1.2.0"`,
+    `ComponentDescription: "Privacy-first OpenCV 17-keypoint RULA/REBA/NIOSH edge safety monitor for ${params.scenario.stationId} (${params.scenario.facilityZone})."`,
+    `ComponentPublisher: "ErgoSight CV Safety Engineering"`,
+    `ComponentDependencies:`,
+    `  aws.greengrass.Nucleus:`,
+    `    VersionRequirement: ">=2.12.0 <3.0.0"`,
+    `  aws.greengrass.StreamManager:`,
+    `    VersionRequirement: ">=2.1.0 <3.0.0"`,
+    `ComponentConfiguration:`,
+    `  DefaultConfiguration:`,
+    `    StationId: "${params.scenario.stationId}"`,
+    `    FacilityZone: "${params.scenario.facilityZone}"`,
+    `    PrivacyMode: "${params.privacyMode}"`,
+    `    EnforceZeroBiometricRetention: true`,
+    `    CurrentREBAScore: ${params.risk.rebaScore}`,
+    `    CurrentNIOSHLiftingIndex: ${params.risk.niosh.liftingIndex}`,
+    `    accessControl:`,
+    `      aws.greengrass.ipc.mqttproxy:`,
+    `        "com.ergosight.cv.EdgePoseSafetyMonitor:mqttproxy:1":`,
+    `          policyDescription: "Publish anonymized RULA/REBA/NIOSH EMF metrics to AWS IoT Core"`,
+    `          operations:`,
+    `            - "aws.greengrass#PublishToIoTCore"`,
+    `          resources:`,
+    `            - "ergosight/telemetry/${params.scenario.stationId}/emf"`,
+    `Manifests:`,
+    `  - Platform:`,
+    `      os: "linux"`,
+    `      architecture: "aarch64"`,
+    `    Lifecycle:`,
+    `      Install: "python3 -m pip install --user opencv-python-headless numpy awsiotsdk"`,
+    `      Run: "python3 -u {artifacts:path}/ergosight_edge_worker.py --station {configuration:/StationId} --privacy {configuration:/PrivacyMode}"`,
+    `      Recover: "echo 'Recovering ErgoSight OpenCV worker in deterministic skeleton-only fallback mode'"`,
+  ].join('\n');
+}
+
+export function buildBedrockAgentActionGroupSpec(params: {
+  scenario: ErgonomicScenarioPreset;
+  risk: BiomechanicalRiskAssessment;
+  fatigue: RepetitionFatigueReport;
+}): string {
+  const spec = {
+    openapi: '3.0.1',
+    info: {
+      title: 'ErgoSightBedrockAgentSafetyActionGroup',
+      version: '1.0.0',
+      description:
+        'Amazon Bedrock AgentCore Action Group for autonomous OSHA/NIOSH ergonomic workstation intervention and ISO 11226 micro-break scheduling.',
+    },
+    paths: {
+      '/ergonomics/evaluate-station': {
+        post: {
+          operationId: 'evaluateWorkstationBiomechanics',
+          description:
+            'Evaluates 17-keypoint anonymized joint angles using RULA (1-7), REBA (1-15), and the 1991 Revised NIOSH Lifting Equation (RWL = 23kg * HM * VM * DM * AM * FM * CM).',
+          x_currentStationSnapshot: {
+            stationId: params.scenario.stationId,
+            rulaScore: params.risk.rulaScore,
+            rebaScore: params.risk.rebaScore,
+            nioshRwlKg: params.risk.niosh.recommendedWeightLimitKg,
+            nioshLiftingIndex: params.risk.niosh.liftingIndex,
+            lumbarCompressionNewtons: params.risk.estimatedLumbarCompressionN,
+            actionLevel: params.risk.actionLevel,
+          },
+        },
+      },
+      '/ergonomics/schedule-iso11226-microbreak': {
+        post: {
+          operationId: 'scheduleIso11226MicroBreak',
+          description:
+            'Dispatches an automated workstation micro-break alert and scissor-lift height adjustment when REBA >= 8 or NIOSH LI > 1.0.',
+          x_activeSchedule: {
+            stationId: params.scenario.stationId,
+            intervalMinutes: params.fatigue.microBreakIntervalMinutes,
+            durationSeconds: params.fatigue.microBreakDurationSeconds,
+            cumulativeFatiguePct: params.fatigue.cumulativeFatigueScore,
+          },
+        },
+      },
+    },
+  };
+  return JSON.stringify(spec, null, 2);
 }
 
 export function verifyPrivacyCompliantTelemetry(payloadJson: string): {
@@ -227,6 +355,16 @@ export async function runErgoSightPipeline(params: {
     fatigue: fatigueReport,
   });
   const awsTelemetryJson = JSON.stringify(awsTelemetryPacket, null, 2);
+  const greengrassV2RecipeYaml = buildAwsGreengrassV2RecipeYaml({
+    scenario: params.scenario,
+    privacyMode,
+    risk: biomechanicalRisk,
+  });
+  const bedrockAgentActionGroupJson = buildBedrockAgentActionGroupSpec({
+    scenario: params.scenario,
+    risk: biomechanicalRisk,
+    fatigue: fatigueReport,
+  });
 
   const defaultCoachNote = `${params.scenario.stationId}: RULA ${biomechanicalRisk.rulaScore}/7 · REBA ${biomechanicalRisk.rebaScore}/15 · NIOSH LI ${biomechanicalRisk.niosh.liftingIndex} (RWL ${biomechanicalRisk.niosh.recommendedWeightLimitKg}kg). ${biomechanicalRisk.actionSummary}`;
 
@@ -243,6 +381,8 @@ export async function runErgoSightPipeline(params: {
       coachExecutiveNote: defaultCoachNote,
       awsTelemetryPacket,
       awsTelemetryJson,
+      greengrassV2RecipeYaml,
+      bedrockAgentActionGroupJson,
     };
   }
 
@@ -300,6 +440,8 @@ export async function runErgoSightPipeline(params: {
       coachExecutiveNote: enhancedNote,
       awsTelemetryPacket,
       awsTelemetryJson,
+      greengrassV2RecipeYaml,
+      bedrockAgentActionGroupJson,
     };
   } catch (err) {
     clearTimeout(timer);
@@ -319,6 +461,8 @@ export async function runErgoSightPipeline(params: {
       coachExecutiveNote: defaultCoachNote,
       awsTelemetryPacket,
       awsTelemetryJson,
+      greengrassV2RecipeYaml,
+      bedrockAgentActionGroupJson,
     };
   }
 }
