@@ -22,3 +22,8 @@ flowchart LR
 | **BiomechanicalRiskEngine** | `src/lib/ergonomics/biomechanical-risk-engine.ts` | Validated RULA `[1, 7]`, REBA `[1, 15]`, L5/S1 lumbar disc compression (Newtons), and Revised NIOSH Lifting Equation (`RWL` & `LI`) across 4 industrial presets (`verifyBiomechanicalBounds`). |
 | **RepetitionFatigueEngine** | `src/lib/fatigue/repetition-fatigue-engine.ts` | Strictly monotonic 6-checkpoint shift fatigue accumulation curve (`verifyMonotonicFatigueCurve`) and micro-break scheduling. |
 | **AwsEdgeCoachAdapter** | `src/lib/aws/aws-edge-coach-adapter.ts` | Validated AWS CloudWatch EMF telemetry JSON with `BiometricPiiRedacted: true` and `0` cranial/facial PII leaks (`verifyPrivacyCompliantTelemetry`), plus `4.5s` `AbortController` circuit breaker. |
+
+## 3. AWS IoT Greengrass V2 & Bedrock AgentCore Specifications (`aws-edge-coach-adapter.ts`)
+
+- **Greengrass V2 Component Recipe**: `RecipeFormatVersion: "2020-01-25"` with `aws.greengrass.ipc.mqttproxy` access control for `ergosight/telemetry/emf`.
+- **Bedrock AgentCore OpenAPI `3.0.1`**: Defines structured POST operations `/ergo/intervene` and `/ergo/engineering-control`.

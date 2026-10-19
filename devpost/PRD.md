@@ -21,3 +21,5 @@ Over-exertion, awkward lumbar trunk flexion, overhead shoulder abduction, and re
 - **Real-Time RULA, REBA & NIOSH Lifting Math**: Computes lumbar trunk flexion, cervical flexion, shoulder abduction, wrist deviation, axial asymmetry twist, L5/S1 disc compression force (Newtons), NIOSH Recommended Weight Limit (`RWL`), and Lifting Index (`LI = Load / RWL`).
 - **Temporal Repetition & Fatigue Telemetry**: Tracks cycles/minute and static hold duration to prescribe ISO 11226 decompression micro-breaks.
 - **AWS IoT Greengrass & CloudWatch EMF Integration**: Emits schema-validated AWS CloudWatch Embedded Metric Format (EMF) JSON packets containing 100% anonymized station safety metrics.
+
+- **AWS IoT Greengrass V2 Recipe & Bedrock AgentCore Action Group**: Emits `RecipeFormatVersion: "2020-01-25"` edge deployment manifests (`aws.greengrass.ipc.mqttproxy`) and OpenAPI `3.0.1` Bedrock AgentCore action schemas (`/ergo/intervene`, `/ergo/engineering-control`).

@@ -28,3 +28,8 @@ npm run dev
 - **Gate 3 (`RepetitionFatigueEngine`)**: Cycle-rate strain, ISO 11226 static hold tracking, micro-break scheduling, and strictly monotonic shift fatigue curves (`verifyMonotonicFatigueCurve`).
 - **Gate 4 (`AwsEdgeCoachAdapter`)**: OSHA/NIOSH engineering control synthesis, AWS CloudWatch EMF telemetry generation with verified zero cranial/facial biometric PII leakage (`verifyPrivacyCompliantTelemetry`), and `4.5s` `AbortController` circuit-breaker resilience.
 - **Gate 5 & Gate 6 (`Port 5183 & Clean-Room Audit`)**: Strict binding to `127.0.0.1:5183` (`strictPort: true`) and zero proprietary terminology leakage across all 15 project files.
+
+## ☁️ AWS IoT Greengrass V2 (`2020-01-25`) & Amazon Bedrock AgentCore OpenAPI 3.0
+
+- **AWS IoT Greengrass V2 Recipe (`buildAwsGreengrassV2RecipeYaml`)**: Generates deployment-ready `RecipeFormatVersion: "2020-01-25"` component YAML (`com.ergosight.edge.PoseSafetyMonitor`) with `aws.greengrass.ipc.mqttproxy` (`aws.greengrass#PublishToIoTCore` on `ergosight/telemetry/emf`).
+- **Amazon Bedrock AgentCore Action Group (`buildBedrockAgentActionGroupSpec`)**: Exports an OpenAPI `3.0.1` specification (`/ergo/intervene` and `/ergo/engineering-control`) enabling autonomous AWS Bedrock supervisor agents to schedule ISO 11226 micro-breaks and OSHA engineering controls.
