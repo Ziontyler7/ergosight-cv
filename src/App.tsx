@@ -90,6 +90,10 @@ export default function App() {
     'emf-telemetry' | 'greengrass-v2' | 'bedrock-agent'
   >('emf-telemetry');
   const [copiedBanner, setCopiedBanner] = useState<string | null>(null);
+  const [ehsOfficerName, setEhsOfficerName] = useState<string>('M. Vance, CSP (EHS Lead)');
+  const [ehsInterventionState, setEhsInterventionState] = useState<
+    'AWAITING_HUMAN_SIGNOFF' | 'MICRO_BREAK_DISPATCHED' | 'HOIST_ASSIST_LOCKED'
+  >('AWAITING_HUMAN_SIGNOFF');
 
   useEffect(() => {
     setAngles(activePreset.angles);
@@ -840,6 +844,85 @@ export default function App() {
                 ? greengrassRecipeYaml
                 : bedrockActionGroupJson}
             </pre>
+
+            {/* Human-in-the-Loop EHS Safety Officer Approval Gate */}
+            <div
+              style={{
+                marginTop: 14,
+                padding: '12px 14px',
+                borderRadius: 10,
+                background:
+                  ehsInterventionState === 'AWAITING_HUMAN_SIGNOFF'
+                    ? 'rgba(15, 23, 42, 0.9)'
+                    : 'rgba(16, 185, 129, 0.14)',
+                border:
+                  ehsInterventionState === 'AWAITING_HUMAN_SIGNOFF'
+                    ? '1px solid rgba(6, 182, 212, 0.45)'
+                    : '1px solid rgba(16, 185, 129, 0.55)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 8,
+                  marginBottom: 8,
+                }}
+              >
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f8fafc' }}>
+                  🛡️ Human-in-the-Loop EHS Safety Officer Sign-Off (“A person still approves every critical action”)
+                </div>
+                <span className="badge-pill badge-cyan mono">
+                  Gate: {ehsInterventionState}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  aria-label="EHS Safety Officer Name"
+                  value={ehsOfficerName}
+                  onChange={(e) => setEhsOfficerName(e.target.value)}
+                  style={{
+                    background: '#070a12',
+                    color: '#f8fafc',
+                    border: '1px solid rgba(148,163,184,0.3)',
+                    borderRadius: 6,
+                    padding: '6px 10px',
+                    fontSize: '0.76rem',
+                    width: 210,
+                  }}
+                />
+                <button
+                  type="button"
+                  className="action-btn"
+                  onClick={() => setEhsInterventionState('MICRO_BREAK_DISPATCHED')}
+                >
+                  ✓ Approve &amp; Dispatch 3-Min Recovery Break ({ehsOfficerName})
+                </button>
+                <button
+                  type="button"
+                  className="action-btn"
+                  onClick={() => {
+                    setAngles({
+                      trunkFlexionDeg: 68,
+                      shoulderAbductionDeg: 118,
+                      neckFlexionDeg: 38,
+                      elbowFlexionDeg: 105,
+                      wristDeviationDeg: 28,
+                      kneeFlexionDeg: 45,
+                      asymmetryTwistDeg: 42,
+                    });
+                    setLoadMassKg(26.5);
+                    setCyclesPerMinute(24);
+                    setEhsInterventionState('AWAITING_HUMAN_SIGNOFF');
+                  }}
+                >
+                  🧪 Judge Blind-Test: Inject Unseen Extreme Lift (26.5kg @ 68° Twist)
+                </button>
+              </div>
+            </div>
           </section>
         </div>
       </div>
